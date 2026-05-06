@@ -1,5 +1,5 @@
 import {
-  collection, doc, updateDoc, getDocs,
+  collection, doc, setDoc, updateDoc, getDocs,
   query, where, arrayUnion, arrayRemove, serverTimestamp, writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
@@ -9,10 +9,10 @@ export async function createGroup(
   userId: string,
   userDisplayName: string
 ): Promise<string> {
-  const batch = writeBatch(db)
-
   const groupRef = doc(collection(db, 'groups'))
-  batch.set(groupRef, {
+
+  // Write group doc first so isGroupAdmin() can resolve for the member write below
+  await setDoc(groupRef, {
     name: data.name,
     defaultRatePerSong: data.defaultRatePerSong,
     createdAt: serverTimestamp(),
@@ -21,8 +21,7 @@ export async function createGroup(
     members: [userId],
   })
 
-  const memberRef = doc(collection(db, 'groups', groupRef.id, 'members'))
-  batch.set(memberRef, {
+  await setDoc(doc(collection(db, 'groups', groupRef.id, 'members')), {
     name: userDisplayName,
     phone: null,
     email: null,
@@ -32,7 +31,6 @@ export async function createGroup(
     linkedUid: userId,
   })
 
-  await batch.commit()
   return groupRef.id
 }
 

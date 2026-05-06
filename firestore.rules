@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.token.email == 'shriyans.naik@gmail.com';
+    }
+
+    function isGroupMember(groupId) {
+      return request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+    }
+
+    function isGroupAdmin(groupId) {
+      return request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.admins;
+    }
+
+    match /groups/{groupId} {
+      allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && isGroupAdmin(groupId);
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+        allow write: if request.auth != null && isGroupAdmin(groupId);
+      }
+
+      match /events/{eventId} {
+        allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+        allow create, update: if request.auth != null && isGroupAdmin(groupId);
+        allow delete: if false;
+
+        match /attendance/{attendanceId} {
+          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+          allow write: if request.auth != null && isGroupAdmin(groupId);
+        }
+
+        match /expenses/{expenseId} {
+          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+          allow write: if request.auth != null && isGroupAdmin(groupId);
+        }
+
+        match /approvals/{approvalId} {
+          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+          allow create: if request.auth != null && isGroupAdmin(groupId);
+          allow update: if request.auth != null && isGroupAdmin(groupId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['votes', 'status', 'resolvedAt', 'resolvedBy']);
+          allow delete: if false;
+        }
+
+        match /activityLog/{logId} {
+          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
+          allow create: if request.auth != null && isGroupAdmin(groupId);
+          allow update, delete: if false;
+        }
+      }
+    }
+  }
+}

@@ -89,7 +89,7 @@ export default function SettingsPage() {
   const isAdmin = userRole === 'admin'
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-2xl mx-auto">
       <PageHeader title="Settings" />
       <div className="p-4 space-y-4">
         <Card>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams, Navigate, Outlet } from 'react-router-dom'
+import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { doc, onSnapshot, collection, query, where } from 'firebase/firestore'
+import { ChevronLeft } from 'lucide-react'
 import { db } from '@/config/firebase'
 import { useAuthStore } from '@/store/authStore'
 import { useGroupStore } from '@/store/groupStore'
@@ -13,7 +14,8 @@ import type { Group, Member } from '@/types'
 export default function GroupLayout() {
   const { groupId } = useParams<{ groupId: string }>()
   const user = useAuthStore((s) => s.user)
-  const { setGroup, setUserRole, setMembers, clearGroup } = useGroupStore()
+  const { setGroup, setUserRole, setMembers, clearGroup, activeGroup } = useGroupStore()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -56,6 +58,17 @@ export default function GroupLayout() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex-1 min-w-0 pb-16 md:pb-0">
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-card md:hidden">
+          <button
+            onClick={() => navigate(ROUTES.GROUPS)}
+            className="flex items-center gap-0.5 text-sm text-muted-foreground active:opacity-60"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            All Groups
+          </button>
+          <span className="mx-2 text-border">·</span>
+          <span className="text-sm font-medium text-foreground truncate">{activeGroup?.name}</span>
+        </div>
         <Outlet />
       </div>
       <BottomNav />

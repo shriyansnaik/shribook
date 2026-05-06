@@ -58,7 +58,7 @@ function SuperAdminGroupCard({ group }: { group: Group }) {
           <p className="font-semibold truncate">{group.name}</p>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Users className="w-3 h-3" /> {group.members.length} members
+              <Users className="w-3 h-3" /> {group.memberCount ?? 0} members
             </span>
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3 h-3" /> {group.admins.length} admin{group.admins.length > 1 ? 's' : ''}

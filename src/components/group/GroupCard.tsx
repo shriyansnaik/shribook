@@ -32,7 +32,7 @@ export default function GroupCard({ group }: GroupCardProps) {
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+            {group.memberCount ?? 0} member{(group.memberCount ?? 0) !== 1 ? 's' : ''}
           </p>
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

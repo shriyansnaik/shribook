@@ -19,6 +19,7 @@ export async function createGroup(
     createdBy: userId,
     admins: [userId],
     members: [userId],
+    memberCount: 1,
   })
 
   await setDoc(doc(collection(db, 'groups', groupRef.id, 'members')), {

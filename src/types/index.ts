@@ -23,6 +23,7 @@ export interface Group {
   createdBy: string
   admins: string[]
   members: string[]
+  memberCount: number
 }
 
 export interface Member {

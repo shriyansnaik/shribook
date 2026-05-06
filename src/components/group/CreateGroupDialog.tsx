@@ -29,7 +29,7 @@ export default function CreateGroupDialog({ open, onOpenChange }: Props) {
     if (!user) return
     setLoading(true)
     try {
-      await createGroup(data, user.uid)
+      await createGroup(data, user.uid, user.displayName ?? user.email ?? 'Admin')
       toast({ title: 'Group created!', description: `"${data.name}" is ready.` })
       reset()
       onOpenChange(false)

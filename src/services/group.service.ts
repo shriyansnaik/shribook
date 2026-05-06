@@ -1,14 +1,18 @@
 import {
-  collection, doc, addDoc, updateDoc, getDocs,
-  query, where, arrayUnion, arrayRemove, serverTimestamp,
+  collection, doc, updateDoc, getDocs,
+  query, where, arrayUnion, arrayRemove, serverTimestamp, writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 
 export async function createGroup(
   data: { name: string; defaultRatePerSong: number },
-  userId: string
+  userId: string,
+  userDisplayName: string
 ): Promise<string> {
-  const ref = await addDoc(collection(db, 'groups'), {
+  const batch = writeBatch(db)
+
+  const groupRef = doc(collection(db, 'groups'))
+  batch.set(groupRef, {
     name: data.name,
     defaultRatePerSong: data.defaultRatePerSong,
     createdAt: serverTimestamp(),
@@ -16,7 +20,20 @@ export async function createGroup(
     admins: [userId],
     members: [userId],
   })
-  return ref.id
+
+  const memberRef = doc(collection(db, 'groups', groupRef.id, 'members'))
+  batch.set(memberRef, {
+    name: userDisplayName,
+    phone: null,
+    email: null,
+    addedAt: serverTimestamp(),
+    addedBy: userId,
+    isActive: true,
+    linkedUid: userId,
+  })
+
+  await batch.commit()
+  return groupRef.id
 }
 
 export async function updateGroup(

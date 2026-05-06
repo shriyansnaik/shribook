@@ -11,7 +11,7 @@ import { ROUTES } from '@/lib/constants'
 import { formatCurrency } from '@/lib/utils'
 
 export default function DashboardPage() {
-  const { activeGroup } = useGroupStore()
+  const { activeGroup, members } = useGroupStore()
   const { events, loading } = useEvents(activeGroup?.id)
   const navigate = useNavigate()
 
@@ -36,7 +36,7 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="p-3 text-center">
             <Users className="w-4 h-4 text-navy mx-auto mb-1" />
-            <p className="text-lg font-bold text-foreground">{activeGroup?.members.length ?? 0}</p>
+            <p className="text-lg font-bold text-foreground">{members.length}</p>
             <p className="text-[10px] text-muted-foreground">Members</p>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from 'react-router-dom'
 import { Shield, Trash2, UserPlus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,19 +9,24 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import PageHeader from '@/components/layout/PageHeader'
-import { updateGroup, addAdminToGroup, removeAdminFromGroup } from '@/services/group.service'
+import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import { updateGroup, addAdminToGroup, removeAdminFromGroup, deleteGroup } from '@/services/group.service'
 import { useGroupStore } from '@/store/groupStore'
 import { useAuthStore } from '@/store/authStore'
 import { groupSchema, type GroupFormValues } from '@/lib/validators'
 import { useToast } from '@/hooks/use-toast'
+import { ROUTES } from '@/lib/constants'
 
 export default function SettingsPage() {
   const { activeGroup, userRole } = useGroupStore()
   const user = useAuthStore((s) => s.user)
   const { toast } = useToast()
+  const navigate = useNavigate()
   const [savingGroup, setSavingGroup] = useState(false)
   const [newAdminUid, setNewAdminUid] = useState('')
   const [addingAdmin, setAddingAdmin] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
@@ -65,6 +71,18 @@ export default function SettingsPage() {
       toast({ title: 'Admin removed' })
     } catch {
       toast({ title: 'Error', variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteGroup = async () => {
+    if (!activeGroup) return
+    setDeleting(true)
+    try {
+      await deleteGroup(activeGroup.id)
+      navigate(ROUTES.GROUPS)
+    } catch {
+      toast({ title: 'Error deleting group', variant: 'destructive' })
+      setDeleting(false)
     }
   }
 
@@ -143,7 +161,38 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+        {isAdmin && (
+          <Card className="border-destructive/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-destructive">Danger Zone</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Delete this group</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Permanently deletes all events, members, and data. This cannot be undone.
+                  </p>
+                </div>
+                <Button variant="destructive" size="sm" className="shrink-0" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${activeGroup?.name}"?`}
+        description="This will permanently delete all events, members, expenses, and activity logs for this group. This cannot be undone."
+        confirmLabel="Delete Group"
+        variant="destructive"
+        onConfirm={handleDeleteGroup}
+        loading={deleting}
+      />
     </div>
   )
 }

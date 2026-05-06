@@ -61,3 +61,35 @@ export async function getGroupsByUser(userId: string) {
   const snap = await getDocs(q)
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
+
+export async function deleteGroup(groupId: string) {
+  const BATCH_LIMIT = 400
+
+  const deleteDocs = async (refs: import('firebase/firestore').DocumentReference[]) => {
+    for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db)
+      refs.slice(i, i + BATCH_LIMIT).forEach((r) => batch.delete(r))
+      await batch.commit()
+    }
+  }
+
+  // Delete members subcollection
+  const membersSnap = await getDocs(collection(db, 'groups', groupId, 'members'))
+  await deleteDocs(membersSnap.docs.map((d) => d.ref))
+
+  // Delete events and all their subcollections
+  const eventsSnap = await getDocs(collection(db, 'groups', groupId, 'events'))
+  for (const eventDoc of eventsSnap.docs) {
+    const eventId = eventDoc.id
+    const subcolls = ['attendance', 'expenses', 'approvals', 'activityLog']
+    for (const sub of subcolls) {
+      const subSnap = await getDocs(collection(db, 'groups', groupId, 'events', eventId, sub))
+      await deleteDocs(subSnap.docs.map((d) => d.ref))
+    }
+    await deleteDocs([eventDoc.ref])
+  }
+
+  // Delete the group doc itself
+  const { deleteDoc } = await import('firebase/firestore')
+  await deleteDoc(doc(db, 'groups', groupId))
+}

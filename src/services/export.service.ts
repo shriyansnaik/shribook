@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import type { Event, Attendance, Expense } from '@/types'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -42,6 +42,9 @@ export function exportEventCSV(event: Event, attendance: Attendance[], expenses:
   const date = formatDate(event.date, { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')
   downloadBlob(new Blob([csv], { type: 'text/csv' }), `${slug}_${date}.csv`)
 }
+
+// jsPDF built-in fonts don't support ₹ (U+20B9) — use Rs. instead
+const Rs = (n: number) => 'Rs. ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
 
 export async function exportEventPDF(event: Event, attendance: Attendance[], expenses: Expense[]) {
   const { jsPDF } = await import('jspdf')
@@ -86,7 +89,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
   pdf.setFont('helvetica', 'normal')
   pdf.setTextColor(100, 116, 139)
   pdf.text(
-    `${formatDate(event.date)}   ·   ${event.venue}   ·   ₹${event.ratePerSong}/song`,
+    `${formatDate(event.date)}   ·   ${event.venue}   ·   Rs. ${event.ratePerSong}/song`,
     marginL, y
   )
   y += 5
@@ -113,9 +116,9 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
 
   const colW = (pw - marginL * 2) / 3
   const summaryItems = [
-    { label: 'Revenue', value: formatCurrency(event.totalRevenue), color: [22, 163, 74] as [number, number, number] },
-    { label: 'Expenses', value: formatCurrency(event.totalExpenses), color: [220, 38, 38] as [number, number, number] },
-    { label: 'Net', value: formatCurrency(event.netAmount), color: event.netAmount >= 0 ? [22, 163, 74] as [number, number, number] : [220, 38, 38] as [number, number, number] },
+    { label: 'Revenue', value: Rs(event.totalRevenue), color: [22, 163, 74] as [number, number, number] },
+    { label: 'Expenses', value: Rs(event.totalExpenses), color: [220, 38, 38] as [number, number, number] },
+    { label: 'Net', value: Rs(event.netAmount), color: event.netAmount >= 0 ? [22, 163, 74] as [number, number, number] : [220, 38, 38] as [number, number, number] },
   ]
 
   summaryItems.forEach((item, i) => {
@@ -174,7 +177,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
     pdf.setTextColor(71, 85, 105)
     pdf.text(String(a.songCount), marginR - 42, y + 4, { align: 'right' })
     pdf.setTextColor(a.status === 'cancelled' ? 150 : 22, a.status === 'cancelled' ? 150 : 163, a.status === 'cancelled' ? 150 : 74)
-    pdf.text(a.status === 'cancelled' ? '—' : formatCurrency(a.earnings), marginR, y + 4, { align: 'right' })
+    pdf.text(a.status === 'cancelled' ? '—' : Rs(a.earnings), marginR, y + 4, { align: 'right' })
     pdf.setDrawColor(241, 245, 249)
     pdf.line(marginL, y + lineH, marginR, y + lineH)
     y += lineH
@@ -192,7 +195,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
   pdf.setTextColor(15, 23, 42)
   pdf.text('Total Revenue', marginL + 2, y + 5)
   pdf.setTextColor(22, 163, 74)
-  pdf.text(formatCurrency(event.totalRevenue), marginR, y + 5, { align: 'right' })
+  pdf.text(Rs(event.totalRevenue), marginR, y + 5, { align: 'right' })
   y += 13
 
   // ── Expenses ─────────────────────────────────────────────────────────────────
@@ -226,7 +229,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
       pdf.setTextColor(71, 85, 105)
       pdf.text(e.category, marginL + 70, y + 4)
       pdf.setTextColor(220, 38, 38)
-      pdf.text(formatCurrency(e.amount), marginR, y + 4, { align: 'right' })
+      pdf.text(Rs(e.amount), marginR, y + 4, { align: 'right' })
       pdf.setDrawColor(241, 245, 249)
       pdf.line(marginL, y + lineH, marginR, y + lineH)
       y += lineH
@@ -240,7 +243,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
     pdf.setTextColor(15, 23, 42)
     pdf.text('Total Expenses', marginL + 2, y + 5)
     pdf.setTextColor(220, 38, 38)
-    pdf.text(formatCurrency(event.totalExpenses), marginR, y + 5, { align: 'right' })
+    pdf.text(Rs(event.totalExpenses), marginR, y + 5, { align: 'right' })
     y += 13
   }
 
@@ -253,7 +256,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(255, 255, 255)
   const netSign = event.netAmount >= 0 ? '+' : ''
-  pdf.text(`Net  ${netSign}${formatCurrency(event.netAmount)}`, pw / 2, y + 9, { align: 'center' })
+  pdf.text(`Net  ${netSign}${Rs(event.netAmount)}`, pw / 2, y + 9, { align: 'center' })
   y += 20
 
   // ── Approvers ────────────────────────────────────────────────────────────────

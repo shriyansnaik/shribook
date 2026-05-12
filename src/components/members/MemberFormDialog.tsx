@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ResponsiveDialog } from '@/components/shared/ResponsiveDialog'
 import { addMember, updateMember, bulkAddMembers } from '@/services/member.service'
+import { cleanBulkNames } from '@/services/groq.service'
 import { memberSchema, type MemberFormValues } from '@/lib/validators'
 import { useAuthStore } from '@/store/authStore'
 import { useToast } from '@/hooks/use-toast'
@@ -52,11 +53,14 @@ export default function MemberFormDialog({ open, onOpenChange, groupId, editing 
   }
 
   const handleBulkImport = async () => {
-    if (!user) return
-    const names = bulkText.split('\n').map((n) => n.trim()).filter(Boolean)
-    if (!names.length) return
+    if (!user || !bulkText.trim()) return
     setLoading(true)
     try {
+      const names = await cleanBulkNames(bulkText)
+      if (!names.length) {
+        toast({ title: 'No names found', description: 'Could not extract any names from the input.', variant: 'destructive' })
+        return
+      }
       await bulkAddMembers(groupId, names, user.uid)
       toast({ title: `${names.length} member${names.length > 1 ? 's' : ''} added` })
       setBulkText('')
@@ -105,7 +109,7 @@ export default function MemberFormDialog({ open, onOpenChange, groupId, editing 
                 onChange={(e) => setBulkText(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                {bulkText.split('\n').filter((n) => n.trim()).length} names detected
+                AI will clean and extract names automatically
               </p>
             </div>
             <Button className="w-full" onClick={handleBulkImport} disabled={loading || !bulkText.trim()}>

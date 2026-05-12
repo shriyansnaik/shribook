@@ -31,6 +31,7 @@ interface EventDraftState {
   setStep: (step: 1 | 2 | 3) => void
   toggleAttendee: (memberId: string, memberName: string) => void
   updateSongCount: (memberId: string, count: number) => void
+  bulkAddAttendees: (items: DraftAttendee[]) => void
   setExpenses: (expenses: DraftExpense[]) => void
   reset: () => void
 }
@@ -60,6 +61,13 @@ export const useEventDraftStore = create<EventDraftState>((set, get) => ({
         a.memberId === memberId ? { ...a, songCount: Math.max(1, count) } : a
       ),
     })
+  },
+
+  bulkAddAttendees: (items) => {
+    const { attendance } = get()
+    const existing = new Set(attendance.map((a) => a.memberId))
+    const toAdd = items.filter((a) => !existing.has(a.memberId))
+    set({ attendance: [...attendance, ...toAdd] })
   },
 
   setExpenses: (expenses) => set({ expenses }),

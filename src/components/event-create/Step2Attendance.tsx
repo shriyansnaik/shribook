@@ -1,20 +1,26 @@
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Upload, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import AttendeeRow from './AttendeeRow'
 import EmptyState from '@/components/shared/EmptyState'
+import BulkAttendeeImportDialog from '@/components/shared/BulkAttendeeImportDialog'
 import { useEventDraftStore } from '@/store/eventDraftStore'
 import { useGroupStore } from '@/store/groupStore'
-import { Users } from 'lucide-react'
+import type { ParsedAttendee } from '@/services/groq.service'
 
 export default function Step2Attendance() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | 'attending'>('all')
-  const { attendance, setStep } = useEventDraftStore()
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const { attendance, setStep, bulkAddAttendees } = useEventDraftStore()
   const { members } = useGroupStore()
+
+  const handleBulkImport = async (items: ParsedAttendee[]) => {
+    bulkAddAttendees(items)
+  }
 
   const query = search.toLowerCase()
   const allFiltered = members.filter((m) => m.name.toLowerCase().includes(query))
@@ -38,16 +44,22 @@ export default function Step2Attendance() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as 'all' | 'attending')}>
-          <TabsList className="w-full">
-            <TabsTrigger value="all" className="flex-1">
-              All ({members.length})
-            </TabsTrigger>
-            <TabsTrigger value="attending" className="flex-1">
-              Attending ({attendance.length})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex gap-2">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'all' | 'attending')} className="flex-1">
+            <TabsList className="w-full">
+              <TabsTrigger value="all" className="flex-1">
+                All ({members.length})
+              </TabsTrigger>
+              <TabsTrigger value="attending" className="flex-1">
+                Attending ({attendance.length})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9 shrink-0" onClick={() => setBulkOpen(true)}>
+            <Upload className="w-3.5 h-3.5" />
+            Bulk
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
@@ -74,6 +86,13 @@ export default function Step2Attendance() {
           Next: Expenses
         </Button>
       </div>
+
+      <BulkAttendeeImportDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        members={members}
+        onImport={handleBulkImport}
+      />
     </div>
   )
 }

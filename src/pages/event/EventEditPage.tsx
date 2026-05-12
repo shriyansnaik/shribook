@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { UserX, UserPlus, Edit, Trash2 } from 'lucide-react'
+import { UserX, UserPlus, Edit, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,25 +10,28 @@ import CancelSingerDialog from '@/components/event-edit/CancelSingerDialog'
 import AddSingerDialog from '@/components/event-edit/AddSingerDialog'
 import EditExpenseDialog from '@/components/event-edit/EditExpenseDialog'
 import ConfirmDialog from '@/components/shared/ConfirmDialog'
+import BulkAttendeeImportDialog from '@/components/shared/BulkAttendeeImportDialog'
 import { useEvent } from '@/hooks/useEvent'
 import { useGroupStore } from '@/store/groupStore'
 import { useAuthStore } from '@/store/authStore'
-import { deleteExpense } from '@/services/event.service'
+import { addAttendee, deleteExpense } from '@/services/event.service'
 import { requestApproval } from '@/services/approval.service'
 import { useToast } from '@/hooks/use-toast'
 import { ROUTES } from '@/lib/constants'
 import { formatCurrency, getInitials } from '@/lib/utils'
+import type { ParsedAttendee } from '@/services/groq.service'
 import type { Attendance, Expense } from '@/types'
 
 export default function EventEditPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>()
-  const { activeGroup } = useGroupStore()
+  const { activeGroup, members } = useGroupStore()
   const user = useAuthStore((s) => s.user)
   const { toast } = useToast()
   const { event, attendance, expenses, loading } = useEvent(groupId, eventId)
 
   const [cancelTarget, setCancelTarget] = useState<Attendance | null>(null)
   const [addSingerOpen, setAddSingerOpen] = useState(false)
+  const [bulkSingerOpen, setBulkSingerOpen] = useState(false)
   const [editExpenseTarget, setEditExpenseTarget] = useState<Expense | null>(null)
   const [deleteExpenseTarget, setDeleteExpenseTarget] = useState<Expense | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -38,6 +41,26 @@ export default function EventEditPage() {
   const isLocked = event.status === 'locked' || event.status === 'pending_approval'
   const adminCount = activeGroup?.admins.length ?? 1
   const attending = attendance.filter((a) => a.status === 'attending')
+  const attendingIds = new Set(attending.map((a) => a.memberId))
+  const availableMembers = members.filter((m) => !attendingIds.has(m.id))
+
+  const handleBulkImport = async (items: ParsedAttendee[]) => {
+    if (!user) return
+    await Promise.all(
+      items.map((item) => {
+        if (isLocked) {
+          return requestApproval(
+            groupId!, eventId!, 'add_singer',
+            `Add singer: ${item.memberName} (${item.songCount} song${item.songCount > 1 ? 's' : ''})`,
+            { memberId: item.memberId, memberName: item.memberName, songCount: item.songCount },
+            adminCount, user.uid, user.displayName ?? 'Admin'
+          )
+        }
+        return addAttendee(groupId!, eventId!, event.ratePerSong, item, user.uid, user.displayName ?? 'Admin')
+      })
+    )
+    toast({ title: isLocked ? 'Approval requests sent' : `${items.length} singer${items.length > 1 ? 's' : ''} added` })
+  }
 
   const handleDeleteExpense = async () => {
     if (!user || !deleteExpenseTarget) return
@@ -74,9 +97,14 @@ export default function EventEditPage() {
         <Card>
           <CardHeader className="pb-2 flex-row items-center justify-between">
             <CardTitle className="text-sm">Singers ({attending.length})</CardTitle>
-            <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setAddSingerOpen(true)}>
-              <UserPlus className="w-3.5 h-3.5" /> Add Singer
-            </Button>
+            <div className="flex gap-1.5">
+              <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setBulkSingerOpen(true)}>
+                <Upload className="w-3.5 h-3.5" /> Bulk Import
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => setAddSingerOpen(true)}>
+                <UserPlus className="w-3.5 h-3.5" /> Add Singer
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {attending.length === 0 ? (
@@ -139,6 +167,12 @@ export default function EventEditPage() {
       )}
       <AddSingerDialog open={addSingerOpen} onOpenChange={setAddSingerOpen}
         groupId={groupId!} eventId={eventId!} eventStatus={event.status} ratePerSong={event.ratePerSong} currentAttendance={attendance} />
+      <BulkAttendeeImportDialog
+        open={bulkSingerOpen}
+        onOpenChange={setBulkSingerOpen}
+        members={availableMembers}
+        onImport={handleBulkImport}
+      />
       {editExpenseTarget && (
         <EditExpenseDialog open={!!editExpenseTarget} onOpenChange={(v) => !v && setEditExpenseTarget(null)}
           groupId={groupId!} eventId={eventId!} eventStatus={event.status} expense={editExpenseTarget} />

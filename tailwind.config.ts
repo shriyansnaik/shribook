@@ -43,20 +43,22 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        /* "navy" retained as the decorative accent token (avatars, icons);
+           refreshed from dull navy to the crisp brand blue. */
         navy: {
-          DEFAULT: '#1E3A5F',
-          light: '#2D5282',
+          DEFAULT: '#2563EB',
+          light: '#3B82F6',
         },
         gold: {
-          DEFAULT: '#C9A84C',
-          light: '#F6E9C8',
+          DEFAULT: '#D97706',
+          light: '#FEF3C7',
         },
         success: {
-          DEFAULT: '#0D7A4E',
+          DEFAULT: '#059669',
           bg: '#ECFDF5',
         },
         danger: {
-          DEFAULT: '#C0392B',
+          DEFAULT: '#DC2626',
           bg: '#FEF2F2',
         },
       },
@@ -66,8 +68,8 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        'card-hover': '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+        card: '0 1px 2px 0 rgba(16,24,40,0.04), 0 1px 3px 0 rgba(16,24,40,0.06)',
+        'card-hover': '0 8px 24px -6px rgba(16,24,40,0.12), 0 2px 6px -2px rgba(16,24,40,0.06)',
       },
     },
   },

@@ -2,57 +2,87 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSuperAdmin() {
-      return request.auth != null && request.auth.token.email == 'shriyans.naik@gmail.com';
+    function signedIn() {
+      return request.auth != null;
     }
 
+    function userEmail() {
+      return request.auth.token.email;
+    }
+
+    function isSuperAdmin() {
+      return signedIn() && request.auth.token.email == 'shriyans.naik@gmail.com';
+    }
+
+    function groupData(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data;
+    }
+
+    // A member is anyone whose uid is in members[] OR whose signed-in email is
+    // mirrored onto the group's memberEmails[] (rudimentary email-based access).
     function isGroupMember(groupId) {
-      return request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+      let g = groupData(groupId);
+      return request.auth.uid in g.members
+        || userEmail() in g.get('memberEmails', []);
     }
 
     function isGroupAdmin(groupId) {
-      return request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.admins;
+      return request.auth.uid in groupData(groupId).admins;
+    }
+
+    // An approver is a member whose email is in approverEmails[].
+    function isApprover(groupId) {
+      return userEmail() in groupData(groupId).get('approverEmails', []);
     }
 
     match /groups/{groupId} {
-      allow read: if request.auth != null && (isSuperAdmin() || request.auth.uid in resource.data.members);
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && isGroupAdmin(groupId);
-      allow delete: if request.auth != null && request.auth.uid in resource.data.admins;
+      allow read: if signedIn() && (
+        isSuperAdmin()
+        || request.auth.uid in resource.data.members
+        || userEmail() in resource.data.get('memberEmails', [])
+      );
+      allow create: if signedIn();
+      allow update: if signedIn() && isGroupAdmin(groupId);
+      allow delete: if signedIn() && request.auth.uid in resource.data.admins;
 
       match /members/{memberId} {
-        allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-        allow write: if request.auth != null && isGroupAdmin(groupId);
+        allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+        allow write: if signedIn() && isGroupAdmin(groupId);
       }
 
       match /events/{eventId} {
-        allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-        allow create, update, delete: if request.auth != null && isGroupAdmin(groupId);
+        allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+        allow create, delete: if signedIn() && isGroupAdmin(groupId);
+        // Admins can edit freely. Approvers may only stamp their approval
+        // (append to approvers / approverNames), nothing else.
+        allow update: if signedIn() && (
+          isGroupAdmin(groupId)
+          || (isApprover(groupId)
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['approvers', 'approverNames']))
+        );
 
         match /attendance/{attendanceId} {
-          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-          allow write: if request.auth != null && isGroupAdmin(groupId);
+          allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+          allow write: if signedIn() && isGroupAdmin(groupId);
         }
 
         match /expenses/{expenseId} {
-          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-          allow write: if request.auth != null && isGroupAdmin(groupId);
+          allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+          allow write: if signedIn() && isGroupAdmin(groupId);
         }
 
-        match /approvals/{approvalId} {
-          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-          allow create: if request.auth != null && isGroupAdmin(groupId);
-          allow update: if request.auth != null && isGroupAdmin(groupId)
-            && request.resource.data.diff(resource.data).affectedKeys()
-                .hasOnly(['votes', 'status', 'resolvedAt', 'resolvedBy']);
-          allow delete: if request.auth != null && isGroupAdmin(groupId);
+        match /sponsors/{sponsorId} {
+          allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+          allow write: if signedIn() && isGroupAdmin(groupId);
         }
 
         match /activityLog/{logId} {
-          allow read: if request.auth != null && (isSuperAdmin() || isGroupMember(groupId));
-          allow create: if request.auth != null && isGroupAdmin(groupId);
+          allow read: if signedIn() && (isSuperAdmin() || isGroupMember(groupId));
+          // Approvers can also append a log entry when they approve.
+          allow create: if signedIn() && (isGroupAdmin(groupId) || isApprover(groupId));
           allow update: if false;
-          allow delete: if request.auth != null && isGroupAdmin(groupId);
+          allow delete: if signedIn() && isGroupAdmin(groupId);
         }
       }
     }

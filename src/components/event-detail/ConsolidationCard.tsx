@@ -4,28 +4,35 @@ import { formatCurrency } from '@/lib/utils'
 
 interface Props {
   totalRevenue: number
+  totalSponsors: number
   totalExpenses: number
   netAmount: number
 }
 
-export default function ConsolidationCard({ totalRevenue, totalExpenses, netAmount }: Props) {
+export default function ConsolidationCard({ totalRevenue, totalSponsors, totalExpenses, netAmount }: Props) {
   return (
     <Card>
       <CardContent className="p-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
           Financial Summary
         </p>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Revenue</p>
-            <p className="font-bold text-success text-base">{formatCurrency(totalRevenue)}</p>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Singer revenue</span>
+            <span className="font-medium text-success tabular-nums">{formatCurrency(totalRevenue)}</span>
           </div>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Expenses</p>
-            <p className="font-bold text-danger text-base">{formatCurrency(totalExpenses)}</p>
+          {totalSponsors > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Sponsors</span>
+              <span className="font-medium text-success tabular-nums">{formatCurrency(totalSponsors)}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Expenses</span>
+            <span className="font-medium text-danger tabular-nums">{formatCurrency(totalExpenses)}</span>
           </div>
-          <div className="text-center border-l border-border">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Net</p>
+          <div className="flex items-center justify-between border-t border-border pt-2 mt-1">
+            <span className="font-semibold">Net</span>
             <CurrencyDisplay amount={netAmount} showSign size="lg" />
           </div>
         </div>

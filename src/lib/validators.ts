@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const groupSchema = z.object({
   name: z.string().min(1, 'Group name is required').max(100),
-  defaultRatePerSong: z.coerce.number().min(1, 'Rate must be at least ₹1').max(100000),
+  openingBalance: z.coerce.number().min(0, 'Cannot be negative').max(1000000000),
 })
 
 export const memberSchema = z.object({
@@ -17,13 +17,12 @@ export const eventStep1Schema = z.object({
   venue: z.string().min(1, 'Venue is required').max(200),
   description: z.string().max(500).optional().or(z.literal('')),
   ratePerSong: z.coerce.number().min(1, 'Rate must be at least ₹1').max(100000),
+  guestFee: z.coerce.number().min(0, 'Cannot be negative').max(100000),
 })
 
 export const expenseRowSchema = z.object({
-  vendor: z.string().min(1, 'Vendor name is required'),
-  category: z.enum(['venue', 'musician', 'food', 'other']),
+  vendor: z.string().min(1, 'Expense name is required'),
   amount: z.coerce.number().min(1, 'Amount must be at least ₹1'),
-  notes: z.string().max(200).optional().or(z.literal('')),
 })
 
 export type GroupFormValues = z.infer<typeof groupSchema>

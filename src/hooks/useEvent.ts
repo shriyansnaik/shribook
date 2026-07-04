@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 import { checkAndLockIfNeeded } from '@/services/event.service'
-import type { Event, Attendance, Expense } from '@/types'
+import type { Event, Attendance, Expense, Sponsor } from '@/types'
 
 export function useEvent(groupId: string | undefined, eventId: string | undefined) {
   const [event, setEvent] = useState<Event | null>(null)
   const [attendance, setAttendance] = useState<Attendance[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [sponsors, setSponsors] = useState<Sponsor[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -39,8 +40,15 @@ export function useEvent(groupId: string | undefined, eventId: string | undefine
       )
     )
 
+    unsubs.push(
+      onSnapshot(
+        collection(db, 'groups', groupId, 'events', eventId, 'sponsors'),
+        (snap) => setSponsors(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sponsor)))
+      )
+    )
+
     return () => unsubs.forEach((u) => u())
   }, [groupId, eventId])
 
-  return { event, attendance, expenses, loading }
+  return { event, attendance, expenses, sponsors, loading }
 }

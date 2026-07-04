@@ -17,31 +17,19 @@ export const EVENT_STATUS = {
   DRAFT: 'draft',
   ACTIVE: 'active',
   LOCKED: 'locked',
-  PENDING_APPROVAL: 'pending_approval',
 } as const
-
-export const EXPENSE_CATEGORIES = [
-  { value: 'venue', label: 'Venue' },
-  { value: 'musician', label: 'Musician / Sound' },
-  { value: 'food', label: 'Food & Beverages' },
-  { value: 'other', label: 'Other' },
-] as const
-
-// When a group has more than 1 admin, this many approvals are required for locked edits
-export const MIN_APPROVALS_REQUIRED = 2
 
 export const ACTIVITY_ACTIONS = {
   EVENT_CREATED: 'EVENT_CREATED',
   EVENT_UPDATED: 'EVENT_UPDATED',
   EVENT_LOCKED: 'EVENT_LOCKED',
+  EVENT_APPROVED: 'EVENT_APPROVED',
   MEMBER_ADDED: 'MEMBER_ADDED',
   MEMBER_REMOVED: 'MEMBER_REMOVED',
   ATTENDANCE_ADDED: 'ATTENDANCE_ADDED',
   ATTENDANCE_CANCELLED: 'ATTENDANCE_CANCELLED',
+  ATTENDANCE_UPDATED: 'ATTENDANCE_UPDATED',
   EXPENSE_ADDED: 'EXPENSE_ADDED',
   EXPENSE_UPDATED: 'EXPENSE_UPDATED',
   EXPENSE_DELETED: 'EXPENSE_DELETED',
-  APPROVAL_REQUESTED: 'APPROVAL_REQUESTED',
-  APPROVAL_CAST: 'APPROVAL_CAST',
-  APPROVAL_RESOLVED: 'APPROVAL_RESOLVED',
 } as const

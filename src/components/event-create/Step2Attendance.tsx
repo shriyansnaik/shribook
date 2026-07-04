@@ -1,36 +1,38 @@
-import { useState } from 'react'
-import { Search, Upload, Users } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Search, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import AttendeeRow from './AttendeeRow'
 import EmptyState from '@/components/shared/EmptyState'
-import BulkAttendeeImportDialog from '@/components/shared/BulkAttendeeImportDialog'
 import { useEventDraftStore } from '@/store/eventDraftStore'
 import { useGroupStore } from '@/store/groupStore'
-import type { ParsedAttendee } from '@/services/groq.service'
+import { useDraftSave } from '@/hooks/useDraftSave'
+import { computeRowEarnings } from '@/lib/earnings'
+import { formatCurrency } from '@/lib/utils'
 
 export default function Step2Attendance() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | 'attending'>('all')
-  const [bulkOpen, setBulkOpen] = useState(false)
-  const { attendance, setStep, bulkAddAttendees } = useEventDraftStore()
+  const { attendance, step1, setStep } = useEventDraftStore()
   const { members } = useGroupStore()
-
-  const handleBulkImport = async (items: ParsedAttendee[]) => {
-    bulkAddAttendees(items)
-  }
+  const { save, saving } = useDraftSave()
 
   const query = search.toLowerCase()
+  const isSelected = (id: string) => attendance.some((a) => a.memberId === id)
   const allFiltered = members.filter((m) => m.name.toLowerCase().includes(query))
-  const attendingFiltered = members.filter(
-    (m) =>
-      attendance.some((a) => a.memberId === m.id) &&
-      m.name.toLowerCase().includes(query)
-  )
+  const selectedMembers = allFiltered.filter((m) => isSelected(m.id))
+  const otherMembers = allFiltered.filter((m) => !isSelected(m.id))
+  const attendingFiltered = selectedMembers
 
-  const displayed = tab === 'all' ? allFiltered : attendingFiltered
+  const runningTotal = attendance.reduce((s, a) => s + computeRowEarnings({
+    isFounder: a.isFounder,
+    songCount: a.songCount,
+    guestCount: a.guestCount,
+    ratePerSong: step1?.ratePerSong ?? 0,
+    guestFee: step1?.guestFee ?? 0,
+  }), 0)
 
   return (
     <div className="flex flex-col h-full">
@@ -44,55 +46,78 @@ export default function Step2Attendance() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as 'all' | 'attending')} className="flex-1">
-            <TabsList className="w-full">
-              <TabsTrigger value="all" className="flex-1">
-                All ({members.length})
-              </TabsTrigger>
-              <TabsTrigger value="attending" className="flex-1">
-                Attending ({attendance.length})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button variant="outline" size="sm" className="gap-1.5 h-9 shrink-0" onClick={() => setBulkOpen(true)}>
-            <Upload className="w-3.5 h-3.5" />
-            Bulk
-          </Button>
-        </div>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'all' | 'attending')} className="w-full">
+          <TabsList className="w-full">
+            <TabsTrigger value="all" className="flex-1">
+              All ({members.length})
+            </TabsTrigger>
+            <TabsTrigger value="attending" className="flex-1">
+              Attending ({attendance.length})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <ScrollArea className="flex-1">
-        {displayed.length === 0 ? (
-          <EmptyState
-            icon={<Users className="w-6 h-6 text-muted-foreground" />}
-            title={tab === 'attending' ? 'No singers selected yet' : 'No members found'}
-            description={tab === 'attending' ? 'Toggle members from the All tab' : undefined}
-          />
+        {tab === 'attending' ? (
+          attendingFiltered.length === 0 ? (
+            <EmptyState
+              icon={<Users className="w-6 h-6 text-muted-foreground" />}
+              title="No singers selected yet"
+              description="Toggle members from the All tab"
+            />
+          ) : (
+            attendingFiltered.map((m) => <AttendeeRow key={m.id} member={m} />)
+          )
+        ) : allFiltered.length === 0 ? (
+          <EmptyState icon={<Users className="w-6 h-6 text-muted-foreground" />} title="No members found" />
         ) : (
-          displayed.map((m) => <AttendeeRow key={m.id} member={m} />)
+          <>
+            {selectedMembers.length > 0 && (
+              <>
+                <SectionLabel>Selected ({selectedMembers.length})</SectionLabel>
+                {selectedMembers.map((m) => <AttendeeRow key={m.id} member={m} />)}
+              </>
+            )}
+            {otherMembers.length > 0 && (
+              <>
+                <SectionLabel>{selectedMembers.length > 0 ? 'Not selected' : 'All members'}</SectionLabel>
+                {otherMembers.map((m) => <AttendeeRow key={m.id} member={m} />)}
+              </>
+            )}
+          </>
         )}
       </ScrollArea>
 
-      <div className="p-4 border-t border-border flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-          Back
-        </Button>
-        <Button
-          className="flex-1"
-          onClick={() => setStep(3)}
-          disabled={attendance.length === 0}
-        >
-          Next: Expenses
-        </Button>
+      <div className="border-t border-border">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40">
+          <span className="text-sm text-muted-foreground">Running total ({attendance.length} singers)</span>
+          <span className="text-base font-bold text-success tabular-nums">{formatCurrency(runningTotal)}</span>
+        </div>
+        <div className="p-4 flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => setStep(1)} disabled={saving}>
+            Back
+          </Button>
+          <Button variant="ghost" className="shrink-0" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Draft'}
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={() => setStep(3)}
+            disabled={attendance.length === 0}
+          >
+            Next: Expenses
+          </Button>
+        </div>
       </div>
-
-      <BulkAttendeeImportDialog
-        open={bulkOpen}
-        onOpenChange={setBulkOpen}
-        members={members}
-        onImport={handleBulkImport}
-      />
     </div>
+  )
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border sticky top-0">
+      {children}
+    </p>
   )
 }

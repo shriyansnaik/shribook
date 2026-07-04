@@ -1,31 +1,37 @@
 import {
   collection, doc, setDoc, updateDoc, getDocs,
-  query, where, arrayUnion, arrayRemove, serverTimestamp, writeBatch,
+  query, where, serverTimestamp, writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 
 export async function createGroup(
-  data: { name: string; defaultRatePerSong: number },
+  data: { name: string; openingBalance: number },
   userId: string,
-  userDisplayName: string
+  userDisplayName: string,
+  userEmail: string | null
 ): Promise<string> {
   const groupRef = doc(collection(db, 'groups'))
+  const email = userEmail?.trim().toLowerCase() || null
 
   // Write group doc first so isGroupAdmin() can resolve for the member write below
   await setDoc(groupRef, {
     name: data.name,
-    defaultRatePerSong: data.defaultRatePerSong,
+    openingBalance: data.openingBalance,
     createdAt: serverTimestamp(),
     createdBy: userId,
     admins: [userId],
     members: [userId],
     memberCount: 1,
+    memberEmails: email ? [email] : [],
+    approverEmails: [],
   })
 
   await setDoc(doc(collection(db, 'groups', groupRef.id, 'members')), {
     name: userDisplayName,
     phone: null,
-    email: null,
+    email: userEmail?.trim() || null,
+    role: 'member',
+    isApprover: false,
     addedAt: serverTimestamp(),
     addedBy: userId,
     isActive: true,
@@ -37,22 +43,9 @@ export async function createGroup(
 
 export async function updateGroup(
   groupId: string,
-  data: { name?: string; defaultRatePerSong?: number }
+  data: { name?: string; openingBalance?: number }
 ) {
   await updateDoc(doc(db, 'groups', groupId), data)
-}
-
-export async function addAdminToGroup(groupId: string, uid: string) {
-  await updateDoc(doc(db, 'groups', groupId), {
-    admins: arrayUnion(uid),
-    members: arrayUnion(uid),
-  })
-}
-
-export async function removeAdminFromGroup(groupId: string, uid: string) {
-  await updateDoc(doc(db, 'groups', groupId), {
-    admins: arrayRemove(uid),
-  })
 }
 
 export async function getGroupsByUser(userId: string) {
@@ -80,7 +73,7 @@ export async function deleteGroup(groupId: string) {
   const eventsSnap = await getDocs(collection(db, 'groups', groupId, 'events'))
   for (const eventDoc of eventsSnap.docs) {
     const eventId = eventDoc.id
-    const subcolls = ['attendance', 'expenses', 'approvals', 'activityLog']
+    const subcolls = ['attendance', 'expenses', 'activityLog']
     for (const sub of subcolls) {
       const subSnap = await getDocs(collection(db, 'groups', groupId, 'events', eventId, sub))
       await deleteDocs(subSnap.docs.map((d) => d.ref))

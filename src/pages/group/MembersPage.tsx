@@ -42,8 +42,8 @@ export default function MembersPage() {
         <EmptyState
           icon={<Users className="w-6 h-6 text-muted-foreground" />}
           title="No members yet"
-          description="Add members individually or paste a list of names."
-          action={<Button size="sm" onClick={openAdd}>Add Members</Button>}
+          description="Add your group members one by one."
+          action={<Button size="sm" onClick={openAdd}>Add Member</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState icon={<Users className="w-6 h-6 text-muted-foreground" />} title="No results" />

@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Edit, MapPin } from 'lucide-react'
+import { Edit, MapPin, Music, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import PageHeader from '@/components/layout/PageHeader'
 import EventStatusBadge from '@/components/events/EventStatusBadge'
@@ -10,20 +12,17 @@ import ExpenseTable from '@/components/event-detail/ExpenseTable'
 import ApproversList from '@/components/event-detail/ApproversList'
 import ActivityLogList from '@/components/event-detail/ActivityLogList'
 import LockBanner from '@/components/event-detail/LockBanner'
-import ApprovalRequestBanner from '@/components/event-edit/ApprovalRequestBanner'
 import ExportMenu from '@/components/shared/ExportMenu'
 import { useEvent } from '@/hooks/useEvent'
-import { useApprovals } from '@/hooks/useApprovals'
 import { useGroupStore } from '@/store/groupStore'
 import { exportEventCSV, exportEventPDF } from '@/services/export.service'
 import { ROUTES } from '@/lib/constants'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatCurrency } from '@/lib/utils'
 
 export default function EventDetailPage() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>()
   const { userRole } = useGroupStore()
-  const { event, attendance, expenses, loading } = useEvent(groupId, eventId)
-  const { pending } = useApprovals(groupId, eventId)
+  const { event, attendance, expenses, sponsors, loading } = useEvent(groupId, eventId)
   const navigate = useNavigate()
 
   if (loading) {
@@ -48,8 +47,8 @@ export default function EventDetailPage() {
         action={
           <div className="flex items-center gap-2">
             <ExportMenu
-              onExportCSV={() => exportEventCSV(event, attendance, expenses)}
-              onExportPDF={() => exportEventPDF(event, attendance, expenses)}
+              onExportCSV={() => exportEventCSV(event, attendance, expenses, sponsors)}
+              onExportPDF={() => exportEventPDF(event, attendance, expenses, sponsors)}
             />
             {isAdmin && (
               <Button size="sm" variant="outline" className="gap-1.5"
@@ -63,30 +62,50 @@ export default function EventDetailPage() {
 
       <div className="p-4 space-y-4">
         {/* Meta */}
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
           <EventStatusBadge status={event.status} />
+          {event.eventType === 'special' && (
+            <Badge className="bg-gold/15 text-gold border-gold/30">Special Event</Badge>
+          )}
           <span>{formatDate(event.date)}</span>
           <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.venue}</span>
+          <span className="flex items-center gap-1"><Music className="w-3.5 h-3.5" />₹{event.ratePerSong}/song · ₹{event.guestFee ?? 0}/guest</span>
         </div>
 
         {event.description && (
           <p className="text-sm text-muted-foreground">{event.description}</p>
         )}
 
-        <LockBanner status={event.status} pendingCount={pending.length} />
-
-        {isAdmin && pending.length > 0 && (
-          <ApprovalRequestBanner groupId={groupId!} eventId={event.id} ratePerSong={event.ratePerSong} />
-        )}
+        <LockBanner status={event.status} />
 
         <ConsolidationCard
           totalRevenue={event.totalRevenue}
+          totalSponsors={event.totalSponsors ?? 0}
           totalExpenses={event.totalExpenses}
           netAmount={event.netAmount}
         />
 
         <AttendanceTable attendance={attendance} />
         <ExpenseTable expenses={expenses} />
+
+        {sponsors.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5"><Gift className="w-4 h-4 text-gold" /> Sponsors ({sponsors.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {sponsors.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                    <span className="truncate">{s.name}</span>
+                    <span className="font-medium text-success tabular-nums">{formatCurrency(s.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <ApproversList event={event} groupId={groupId!} />
         <ActivityLogList groupId={groupId!} eventId={event.id} />
       </div>

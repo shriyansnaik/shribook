@@ -16,12 +16,14 @@ interface Props {
 
 export default function ApproversList({ event, groupId }: Props) {
   const user = useAuthStore((s) => s.user)
-  const { userRole } = useGroupStore()
+  const { userRole, activeGroup } = useGroupStore()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
 
   const hasApproved = user ? event.approvers.includes(user.uid) : false
-  const isAdmin = userRole === 'admin'
+  const email = user?.email?.toLowerCase()
+  const isApprover = !!email && (activeGroup?.approverEmails ?? []).includes(email)
+  const canApprove = userRole === 'admin' || isApprover
 
   const handleApprove = async () => {
     if (!user) return
@@ -51,17 +53,18 @@ export default function ApproversList({ event, groupId }: Props) {
       </CardHeader>
       <CardContent className="space-y-2">
         {event.approverNames.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No approvals yet. At least 1 review required.</p>
+          <p className="text-sm text-muted-foreground">No approvals yet.</p>
         ) : (
           event.approverNames.map((name, i) => (
             <div key={i} className="flex items-center gap-2 text-sm">
               <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
               <span className="font-medium">{name}</span>
+              <span className="text-xs text-muted-foreground ml-auto">approved</span>
             </div>
           ))
         )}
 
-        {isAdmin && !hasApproved && (
+        {canApprove && !hasApproved && (
           <Button
             size="sm"
             variant="outline"

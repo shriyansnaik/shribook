@@ -14,16 +14,40 @@ export function useGroups() {
     if (!user) { setLoading(false); return }
 
     const coll = collection(db, 'groups')
-    const q = user.email === SUPER_ADMIN_EMAIL
-      ? query(coll, orderBy('createdAt', 'desc'))
-      : query(coll, where('members', 'array-contains', user.uid))
 
-    const unsub = onSnapshot(q, (snap) => {
-      setGroups(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Group)))
+    // Super admin sees everything.
+    if (user.email === SUPER_ADMIN_EMAIL) {
+      return onSnapshot(query(coll, orderBy('createdAt', 'desc')), (snap) => {
+        setGroups(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Group)))
+        setLoading(false)
+      })
+    }
+
+    // Regular users: groups where they're a member (by uid) OR where their email
+    // is mirrored onto the group (invited members / approvers who sign in).
+    // Track each source separately so one query's removal can't drop a group the
+    // other query still matches.
+    const fromUid = new Map<string, Group>()
+    const fromEmail = new Map<string, Group>()
+    const emit = () => {
+      const merged = new Map<string, Group>()
+      fromUid.forEach((g, id) => merged.set(id, g))
+      fromEmail.forEach((g, id) => merged.set(id, g))
+      setGroups([...merged.values()])
       setLoading(false)
-    })
+    }
 
-    return unsub
+    const subscribe = (target: Map<string, Group>, field: 'members' | 'memberEmails', value: string) =>
+      onSnapshot(query(coll, where(field, 'array-contains', value)), (snap) => {
+        target.clear()
+        snap.docs.forEach((d) => target.set(d.id, { id: d.id, ...d.data() } as Group))
+        emit()
+      })
+
+    const unsubs: (() => void)[] = [subscribe(fromUid, 'members', user.uid)]
+    if (user.email) unsubs.push(subscribe(fromEmail, 'memberEmails', user.email.toLowerCase()))
+
+    return () => unsubs.forEach((u) => u())
   }, [user])
 
   return { groups, loading }

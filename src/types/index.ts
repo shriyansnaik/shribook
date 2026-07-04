@@ -1,12 +1,10 @@
 import { Timestamp } from 'firebase/firestore'
 
 export type UserRole = 'admin' | 'member'
-export type EventStatus = 'draft' | 'active' | 'locked' | 'pending_approval'
+export type MemberRole = 'member' | 'founder'
+export type EventType = 'regular' | 'special'
+export type EventStatus = 'draft' | 'active' | 'locked'
 export type AttendanceStatus = 'attending' | 'cancelled'
-export type ExpenseCategory = 'venue' | 'musician' | 'food' | 'other'
-export type ChangeType = 'cancel_singer' | 'add_singer' | 'edit_expense' | 'delete_expense'
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
-export type VoteChoice = 'approve' | 'reject'
 
 export interface AuthUser {
   uid: string
@@ -18,12 +16,16 @@ export interface AuthUser {
 export interface Group {
   id: string
   name: string
-  defaultRatePerSong: number
+  openingBalance: number
   createdAt: Timestamp
   createdBy: string
   admins: string[]
   members: string[]
   memberCount: number
+  // Lowercased emails of members / approvers, mirrored onto the group doc so
+  // feed discovery and security rules can match a signed-in user by email.
+  memberEmails: string[]
+  approverEmails: string[]
 }
 
 export interface Member {
@@ -31,6 +33,8 @@ export interface Member {
   name: string
   phone: string | null
   email: string | null
+  role: MemberRole
+  isApprover: boolean
   addedAt: Timestamp
   addedBy: string
   isActive: boolean
@@ -43,7 +47,9 @@ export interface Event {
   date: Timestamp
   venue: string
   description: string | null
+  eventType: EventType
   ratePerSong: number
+  guestFee: number
   status: EventStatus
   createdAt: Timestamp
   createdBy: string
@@ -51,6 +57,7 @@ export interface Event {
   approvers: string[]
   approverNames: string[]
   totalRevenue: number
+  totalSponsors: number
   totalExpenses: number
   netAmount: number
   attendingCount: number
@@ -60,7 +67,9 @@ export interface Attendance {
   id: string
   memberId: string
   memberName: string
+  isFounder: boolean
   songCount: number
+  guestCount: number
   earnings: number
   status: AttendanceStatus
   cancelledAt: Timestamp | null
@@ -71,36 +80,25 @@ export interface Attendance {
   lastModifiedBy: string
 }
 
-export interface Expense {
+export interface Sponsor {
   id: string
-  vendor: string
-  category: ExpenseCategory
+  name: string
   amount: number
-  notes: string | null
   addedAt: Timestamp
   addedBy: string
   lastModifiedAt: Timestamp | null
   lastModifiedBy: string | null
 }
 
-export interface ApprovalVote {
-  vote: VoteChoice
-  votedAt: Timestamp
-  voterName: string
-}
-
-export interface Approval {
+export interface Expense {
   id: string
-  requestedAt: Timestamp
-  requestedBy: string
-  changeDescription: string
-  changeType: ChangeType
-  changePayload: Record<string, unknown>
-  status: ApprovalStatus
-  votes: Record<string, ApprovalVote>
-  resolvedAt: Timestamp | null
-  resolvedBy: string | null
-  requiredApprovals: number
+  vendor: string
+  amount: number
+  notes: string | null
+  addedAt: Timestamp
+  addedBy: string
+  lastModifiedAt: Timestamp | null
+  lastModifiedBy: string | null
 }
 
 export interface ActivityLogEntry {

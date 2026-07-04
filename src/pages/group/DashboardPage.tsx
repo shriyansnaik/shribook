@@ -16,8 +16,8 @@ export default function DashboardPage() {
   const navigate = useNavigate()
 
   const recent = events.slice(0, 3)
-  const yearRevenue = events.reduce((s, e) => s + e.totalRevenue, 0)
-  const yearExpenses = events.reduce((s, e) => s + e.totalExpenses, 0)
+  const eventsNet = events.reduce((s, e) => s + e.netAmount, 0)
+  const totalNet = (activeGroup?.openingBalance ?? 0) + eventsNet
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -50,7 +50,7 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="p-3 text-center">
             <TrendingUp className="w-4 h-4 text-success mx-auto mb-1" />
-            <p className="text-sm font-bold text-success">{formatCurrency(yearRevenue - yearExpenses)}</p>
+            <p className="text-sm font-bold text-success">{formatCurrency(totalNet)}</p>
             <p className="text-[10px] text-muted-foreground">Net (All)</p>
           </CardContent>
         </Card>

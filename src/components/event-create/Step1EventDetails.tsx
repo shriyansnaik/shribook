@@ -1,24 +1,34 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useEventDraftStore } from '@/store/eventDraftStore'
-import { useGroupStore } from '@/store/groupStore'
 import { eventStep1Schema, type EventStep1Values } from '@/lib/validators'
+import type { EventType } from '@/types'
 
 export default function Step1EventDetails() {
   const { step1, setStep1, setStep } = useEventDraftStore()
-  const { activeGroup } = useGroupStore()
+  const [eventType, setEventType] = useState<EventType>(step1?.eventType ?? 'regular')
 
   const { register, handleSubmit, formState: { errors } } = useForm<EventStep1Values>({
     resolver: zodResolver(eventStep1Schema),
-    defaultValues: step1 ?? { title: '', date: '', venue: '', description: undefined, ratePerSong: activeGroup?.defaultRatePerSong ?? 600 },
+    defaultValues: step1 ?? {
+      title: '', date: '', venue: '', description: undefined,
+      ratePerSong: 600, guestFee: 0,
+    },
   })
 
   const onSubmit = (data: EventStep1Values) => {
-    setStep1({ ...data, ratePerSong: Number(data.ratePerSong) })
+    setStep1({
+      ...data,
+      eventType,
+      ratePerSong: Number(data.ratePerSong),
+      guestFee: Number(data.guestFee),
+    })
     setStep(2)
   }
 
@@ -28,6 +38,17 @@ export default function Step1EventDetails() {
         <Label htmlFor="title">Event Name *</Label>
         <Input id="title" placeholder="e.g. Monthly Singing Night – June" {...register('title')} />
         {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Event Type *</Label>
+        <Select value={eventType} onValueChange={(v) => setEventType(v as EventType)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="regular">Regular</SelectItem>
+            <SelectItem value="special">Special Event</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">
@@ -45,10 +66,14 @@ export default function Step1EventDetails() {
       <div className="space-y-1.5">
         <Label htmlFor="rate">Rate per Song (₹) *</Label>
         <Input id="rate" type="number" min={1} {...register('ratePerSong')} />
-        <p className="text-xs text-muted-foreground">
-          Group default: ₹{activeGroup?.defaultRatePerSong}
-        </p>
         {errors.ratePerSong && <p className="text-xs text-destructive">{errors.ratePerSong.message}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="guestFee">Guest Fee (₹)</Label>
+        <Input id="guestFee" type="number" min={0} {...register('guestFee')} />
+        <p className="text-xs text-muted-foreground">Charged per guest a singer brings. Leave 0 if guests are free.</p>
+        {errors.guestFee && <p className="text-xs text-destructive">{errors.guestFee.message}</p>}
       </div>
 
       <div className="space-y-1.5">

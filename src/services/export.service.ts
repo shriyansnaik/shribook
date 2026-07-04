@@ -1,5 +1,5 @@
 import Papa from 'papaparse'
-import type { Event, Attendance, Expense } from '@/types'
+import type { Event, Attendance, Expense, Sponsor } from '@/types'
 import { formatDate } from '@/lib/utils'
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -11,13 +11,24 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportEventCSV(event: Event, attendance: Attendance[], expenses: Expense[]) {
+export function exportEventCSV(event: Event, attendance: Attendance[], expenses: Expense[], sponsors: Sponsor[] = []) {
   const attRows = attendance.map((a) => ({
     Type: 'Singer',
     Name: a.memberName,
     Songs: a.songCount,
+    Guests: a.guestCount ?? 0,
     Amount: a.earnings,
     Status: a.status === 'cancelled' ? (a.refundIssued ? 'Cancelled (Refund)' : 'Cancelled') : 'Attending',
+    Notes: '',
+  }))
+
+  const sponsorRows = sponsors.map((s) => ({
+    Type: 'Sponsor',
+    Name: s.name,
+    Songs: '',
+    Guests: '',
+    Amount: s.amount,
+    Status: '',
     Notes: '',
   }))
 
@@ -25,19 +36,22 @@ export function exportEventCSV(event: Event, attendance: Attendance[], expenses:
     Type: 'Expense',
     Name: e.vendor,
     Songs: '',
+    Guests: '',
     Amount: -e.amount,
-    Status: e.category,
+    Status: '',
     Notes: e.notes ?? '',
   }))
 
+  const blank = { Type: '', Name: '', Songs: '', Guests: '', Amount: '', Status: '', Notes: '' }
   const summary = [
-    { Type: '', Name: '', Songs: '', Amount: '', Status: '', Notes: '' },
-    { Type: 'TOTAL REVENUE', Name: '', Songs: '', Amount: event.totalRevenue, Status: '', Notes: '' },
-    { Type: 'TOTAL EXPENSES', Name: '', Songs: '', Amount: event.totalExpenses, Status: '', Notes: '' },
-    { Type: 'NET', Name: '', Songs: '', Amount: event.netAmount, Status: '', Notes: '' },
+    blank,
+    { ...blank, Type: 'TOTAL REVENUE', Amount: event.totalRevenue },
+    { ...blank, Type: 'TOTAL SPONSORS', Amount: event.totalSponsors ?? 0 },
+    { ...blank, Type: 'TOTAL EXPENSES', Amount: event.totalExpenses },
+    { ...blank, Type: 'NET', Amount: event.netAmount },
   ]
 
-  const csv = Papa.unparse([...attRows, ...expRows, ...summary])
+  const csv = Papa.unparse([...attRows, ...sponsorRows, ...expRows, ...summary])
   const slug = event.title.replace(/\s+/g, '_')
   const date = formatDate(event.date, { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')
   downloadBlob(new Blob([csv], { type: 'text/csv' }), `${slug}_${date}.csv`)
@@ -46,7 +60,7 @@ export function exportEventCSV(event: Event, attendance: Attendance[], expenses:
 // jsPDF built-in fonts don't support ₹ (U+20B9) — use Rs. instead
 const Rs = (n: number) => 'Rs. ' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n)
 
-export async function exportEventPDF(event: Event, attendance: Attendance[], expenses: Expense[]) {
+export async function exportEventPDF(event: Event, attendance: Attendance[], expenses: Expense[], sponsors: Sponsor[] = []) {
   const { jsPDF } = await import('jspdf')
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -215,8 +229,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
     pdf.setFontSize(7.5)
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(71, 85, 105)
-    pdf.text('Vendor', marginL + 2, y + 4)
-    pdf.text('Category', marginL + 70, y + 4)
+    pdf.text('Name', marginL + 2, y + 4)
     pdf.text('Amount', marginR, y + 4, { align: 'right' })
     y += 7
 
@@ -225,9 +238,7 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
       pdf.setFontSize(8.5)
       pdf.setFont('helvetica', 'normal')
       pdf.setTextColor(15, 23, 42)
-      pdf.text(pdf.splitTextToSize(e.vendor, 60)[0] as string, marginL + 2, y + 4)
-      pdf.setTextColor(71, 85, 105)
-      pdf.text(e.category, marginL + 70, y + 4)
+      pdf.text(pdf.splitTextToSize(e.vendor, 120)[0] as string, marginL + 2, y + 4)
       pdf.setTextColor(220, 38, 38)
       pdf.text(Rs(e.amount), marginR, y + 4, { align: 'right' })
       pdf.setDrawColor(241, 245, 249)
@@ -244,6 +255,43 @@ export async function exportEventPDF(event: Event, attendance: Attendance[], exp
     pdf.text('Total Expenses', marginL + 2, y + 5)
     pdf.setTextColor(220, 38, 38)
     pdf.text(Rs(event.totalExpenses), marginR, y + 5, { align: 'right' })
+    y += 13
+  }
+
+  // ── Sponsors ─────────────────────────────────────────────────────────────────
+  if (sponsors.length > 0) {
+    checkPageBreak(20)
+    pdf.setDrawColor(226, 232, 240)
+    pdf.line(marginL, y - 4, marginR, y - 4)
+
+    pdf.setFontSize(8)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(100, 116, 139)
+    pdf.text(`SPONSORS (${sponsors.length})`, marginL, y)
+    y += 5
+
+    sponsors.forEach((s) => {
+      checkPageBreak(lineH)
+      pdf.setFontSize(8.5)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(15, 23, 42)
+      pdf.text(pdf.splitTextToSize(s.name, 120)[0] as string, marginL + 2, y + 4)
+      pdf.setTextColor(22, 163, 74)
+      pdf.text(Rs(s.amount), marginR, y + 4, { align: 'right' })
+      pdf.setDrawColor(241, 245, 249)
+      pdf.line(marginL, y + lineH, marginR, y + lineH)
+      y += lineH
+    })
+
+    checkPageBreak(8)
+    pdf.setFillColor(241, 245, 249)
+    pdf.rect(marginL, y, pw - marginL * 2, 7, 'F')
+    pdf.setFontSize(8.5)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(15, 23, 42)
+    pdf.text('Total Sponsors', marginL + 2, y + 5)
+    pdf.setTextColor(22, 163, 74)
+    pdf.text(Rs(event.totalSponsors ?? 0), marginR, y + 5, { align: 'right' })
     y += 13
   }
 

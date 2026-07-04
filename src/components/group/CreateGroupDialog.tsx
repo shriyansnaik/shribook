@@ -22,14 +22,14 @@ export default function CreateGroupDialog({ open, onOpenChange }: Props) {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
-    defaultValues: { defaultRatePerSong: 600 },
+    defaultValues: { openingBalance: 0 },
   })
 
   const onSubmit = async (data: GroupFormValues) => {
     if (!user) return
     setLoading(true)
     try {
-      await createGroup(data, user.uid, user.displayName ?? user.email ?? 'Admin')
+      await createGroup(data, user.uid, user.displayName ?? user.email ?? 'Admin', user.email)
       toast({ title: 'Group created!', description: `"${data.name}" is ready.` })
       reset()
       onOpenChange(false)
@@ -49,14 +49,12 @@ export default function CreateGroupDialog({ open, onOpenChange }: Props) {
           {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="rate">Default Rate per Song (₹)</Label>
-          <Input id="rate" type="number" min={1} {...register('defaultRatePerSong')} />
-          {errors.defaultRatePerSong && (
-            <p className="text-xs text-destructive">{errors.defaultRatePerSong.message}</p>
-          )}
+          <Label htmlFor="opening">Opening Balance (₹)</Label>
+          <Input id="opening" type="number" min={0} {...register('openingBalance')} />
           <p className="text-xs text-muted-foreground">
-            Can be overridden per event
+            Profit carried over from before you started using the app. Added to your dashboard total. Leave 0 if none.
           </p>
+          {errors.openingBalance && <p className="text-xs text-destructive">{errors.openingBalance.message}</p>}
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? 'Creating…' : 'Create Group'}

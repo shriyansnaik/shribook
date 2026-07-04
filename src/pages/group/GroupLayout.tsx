@@ -3,6 +3,7 @@ import { useParams, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { doc, onSnapshot, collection, query, where } from 'firebase/firestore'
 import { ChevronLeft } from 'lucide-react'
 import { db } from '@/config/firebase'
+import { BrandMark } from '@/components/shared/Logo'
 import { useAuthStore } from '@/store/authStore'
 import { useGroupStore } from '@/store/groupStore'
 import { ROUTES } from '@/lib/constants'
@@ -67,7 +68,8 @@ export default function GroupLayout() {
             All Groups
           </button>
           <span className="mx-2 text-border">·</span>
-          <span className="text-sm font-medium text-foreground truncate">{activeGroup?.name}</span>
+          <span className="text-sm font-medium text-foreground truncate flex-1">{activeGroup?.name}</span>
+          <BrandMark className="h-6 w-6 shrink-0 ml-2" />
         </div>
         <Outlet />
       </div>

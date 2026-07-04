@@ -43,11 +43,18 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        /* "navy" retained as the decorative accent token (avatars, icons);
-           refreshed from dull navy to the crisp brand blue. */
+        /* Brand navy — sampled from the ShriBook logo (श्री wordmark).
+           Used for the logo lockup, active nav, avatars and primary surfaces. */
         navy: {
-          DEFAULT: '#2563EB',
-          light: '#3B82F6',
+          DEFAULT: '#10336F',
+          light: '#1E5BA8',
+          dark: '#0B2E63',
+        },
+        /* Brand green — the "Book" wordmark / open-book graphic. */
+        green: {
+          DEFAULT: '#3D7D26',
+          light: '#EAF3E4',
+          dark: '#2F6B1C',
         },
         gold: {
           DEFAULT: '#D97706',

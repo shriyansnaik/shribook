@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, LogOut, ShieldCheck, Music } from 'lucide-react'
+import { Plus, LogOut, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import GroupCard from '@/components/group/GroupCard'
 import CreateGroupDialog from '@/components/group/CreateGroupDialog'
 import EmptyState from '@/components/shared/EmptyState'
+import { BrandLockup, BrandMark } from '@/components/shared/Logo'
 import { useGroups } from '@/hooks/useGroups'
 import { useAuthStore } from '@/store/authStore'
 import { signOut } from '@/services/auth.service'
@@ -21,12 +22,7 @@ export default function GroupSelectPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-navy flex items-center justify-center">
-            <Music className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-semibold text-foreground">Shribook</span>
-        </div>
+        <BrandLockup textClassName="text-base" />
         <div className="flex items-center gap-2">
           {isSuperAdmin && (
             <Button variant="ghost" size="sm" className="gap-1.5 text-gold" onClick={() => navigate(ROUTES.SUPER_ADMIN)}>
@@ -58,7 +54,7 @@ export default function GroupSelectPage() {
           </div>
         ) : groups.length === 0 ? (
           <EmptyState
-            icon={<Music className="w-7 h-7 text-muted-foreground" />}
+            icon={<BrandMark className="w-8 h-8 opacity-80" />}
             title="No groups yet"
             description="Create your first group to start tracking events."
             action={<Button onClick={() => setCreateOpen(true)}>Create Group</Button>}

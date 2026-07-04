@@ -15,8 +15,8 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    /* Primary: fresh blue #2563EB (blue-600) */
-    --primary: 221 83% 53%;
+    /* Primary: ShriBook brand navy #10336F (sampled from the logo) */
+    --primary: 218 75% 25%;
     --primary-foreground: 0 0% 100%;
     /* Secondary: neutral gray-100 */
     --secondary: 220 14% 96%;
@@ -33,7 +33,7 @@
     /* Border: neutral gray-200 */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --ring: 218 75% 25%;
     /* Border radius */
     --radius: 0.75rem;
   }
@@ -45,5 +45,23 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer components {
+  /* Deep brand navy gradient used behind logo marks and hero surfaces. */
+  .brand-gradient {
+    background-image: linear-gradient(135deg, #10336F 0%, #0B2E63 55%, #082452 100%);
+  }
+}
+
+@layer utilities {
+  /* Soft breathing animation for the loading-screen logo. */
+  @keyframes brand-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.72; transform: scale(0.96); }
+  }
+  .animate-brand-pulse {
+    animation: brand-pulse 1.8s ease-in-out infinite;
   }
 }

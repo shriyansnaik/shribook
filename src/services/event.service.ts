@@ -46,12 +46,15 @@ export async function createEvent(
   const batch = writeBatch(db)
 
   const eventDate = new Date(step1.date)
+  const subsequentSongRate = step1.subsequentSongRate ?? step1.ratePerSong
   const rowEarnings = (a: DraftAttendee) => computeRowEarnings({
     isFounder: a.isFounder,
     songCount: a.songCount,
     guestCount: a.guestCount,
     ratePerSong: step1.ratePerSong,
+    subsequentSongRate,
     guestFee: step1.guestFee,
+    earningsOverride: a.earningsOverride,
   })
   const totalRevenue = attendance.reduce((s, a) => s + rowEarnings(a), 0)
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0)
@@ -66,6 +69,7 @@ export async function createEvent(
     description: step1.description || null,
     eventType: step1.eventType,
     ratePerSong: step1.ratePerSong,
+    subsequentSongRate,
     guestFee: step1.guestFee,
     status: 'active',
     createdAt: serverTimestamp(),
@@ -89,6 +93,7 @@ export async function createEvent(
       songCount: a.songCount,
       guestCount: a.guestCount,
       earnings: rowEarnings(a),
+      earningsOverride: a.earningsOverride ?? null,
       status: 'attending',
       cancelledAt: null,
       refundIssued: false,
@@ -187,8 +192,8 @@ export async function cancelAttendance(
 export async function addAttendee(
   groupId: string,
   eventId: string,
-  event: { ratePerSong: number; guestFee: number },
-  attendee: { memberId: string; memberName: string; isFounder: boolean; songCount: number; guestCount: number },
+  event: { ratePerSong: number; subsequentSongRate?: number; guestFee: number },
+  attendee: { memberId: string; memberName: string; isFounder: boolean; songCount: number; guestCount: number; earningsOverride?: number | null },
   actorUid: string,
   actorName: string
 ) {
@@ -197,7 +202,9 @@ export async function addAttendee(
     songCount: attendee.songCount,
     guestCount: attendee.guestCount,
     ratePerSong: event.ratePerSong,
+    subsequentSongRate: event.subsequentSongRate,
     guestFee: event.guestFee,
+    earningsOverride: attendee.earningsOverride,
   })
   const batch = writeBatch(db)
   const ref = doc(collection(db, 'groups', groupId, 'events', eventId, 'attendance'))
@@ -208,6 +215,7 @@ export async function addAttendee(
     songCount: attendee.songCount,
     guestCount: attendee.guestCount,
     earnings,
+    earningsOverride: attendee.earningsOverride ?? null,
     status: 'attending',
     cancelledAt: null,
     refundIssued: false,
@@ -227,9 +235,9 @@ export async function updateAttendee(
   groupId: string,
   eventId: string,
   attendanceId: string,
-  event: { ratePerSong: number; guestFee: number },
+  event: { ratePerSong: number; subsequentSongRate?: number; guestFee: number },
   prev: { memberName: string; isFounder: boolean; songCount: number; guestCount: number },
-  next: { songCount: number; guestCount: number },
+  next: { songCount: number; guestCount: number; earningsOverride?: number | null },
   actorUid: string,
   actorName: string
 ) {
@@ -238,13 +246,16 @@ export async function updateAttendee(
     songCount: next.songCount,
     guestCount: next.guestCount,
     ratePerSong: event.ratePerSong,
+    subsequentSongRate: event.subsequentSongRate,
     guestFee: event.guestFee,
+    earningsOverride: next.earningsOverride,
   })
   const batch = writeBatch(db)
   batch.update(doc(db, 'groups', groupId, 'events', eventId, 'attendance', attendanceId), {
     songCount: next.songCount,
     guestCount: next.guestCount,
     earnings,
+    earningsOverride: next.earningsOverride ?? null,
     lastModifiedAt: serverTimestamp(),
     lastModifiedBy: actorUid,
   })
@@ -375,8 +386,8 @@ export async function deleteSponsor(
 export async function updateEventDetails(
   groupId: string,
   eventId: string,
-  data: { title: string; date: string; venue: string; description?: string; eventType: 'regular' | 'special'; ratePerSong: number; guestFee: number },
-  prev: { title: string; venue: string; eventType: 'regular' | 'special'; ratePerSong: number; guestFee: number },
+  data: { title: string; date: string; venue: string; description?: string; eventType: 'regular' | 'special'; ratePerSong: number; subsequentSongRate: number; guestFee: number },
+  prev: { title: string; venue: string; eventType: 'regular' | 'special'; ratePerSong: number; subsequentSongRate?: number; guestFee: number },
   actorUid: string,
   actorName: string
 ) {
@@ -388,22 +399,30 @@ export async function updateEventDetails(
     description: data.description || null,
     eventType: data.eventType,
     ratePerSong: data.ratePerSong,
+    subsequentSongRate: data.subsequentSongRate,
     guestFee: data.guestFee,
     lockedAt: Timestamp.fromDate(lockDate(eventDate)),
   })
 
-  // If the per-song rate or guest fee changed, every attendee's earnings must
-  // be recomputed from their stored song/guest counts (and founder status).
-  if (data.ratePerSong !== prev.ratePerSong || data.guestFee !== prev.guestFee) {
+  // If any rate changed, every attendee's earnings must be recomputed from their
+  // stored song/guest counts — except rows with a manual override, which stick.
+  const prevSubsequent = prev.subsequentSongRate ?? prev.ratePerSong
+  const rateChanged =
+    data.ratePerSong !== prev.ratePerSong ||
+    data.subsequentSongRate !== prevSubsequent ||
+    data.guestFee !== prev.guestFee
+  if (rateChanged) {
     const attSnap = await getDocs(collection(db, 'groups', groupId, 'events', eventId, 'attendance'))
     const batch = writeBatch(db)
     attSnap.docs.forEach((d) => {
       const a = d.data()
+      if (a.earningsOverride != null) return // manual amount is preserved
       const earnings = computeRowEarnings({
         isFounder: !!a.isFounder,
         songCount: a.songCount ?? 0,
         guestCount: a.guestCount ?? 0,
         ratePerSong: data.ratePerSong,
+        subsequentSongRate: data.subsequentSongRate,
         guestFee: data.guestFee,
       })
       batch.update(d.ref, { earnings })
@@ -416,6 +435,7 @@ export async function updateEventDetails(
   if (data.venue !== prev.venue) changes.push('venue')
   if (data.eventType !== prev.eventType) changes.push(`type ${prev.eventType} → ${data.eventType}`)
   if (data.ratePerSong !== prev.ratePerSong) changes.push(`rate ₹${prev.ratePerSong} → ₹${data.ratePerSong}`)
+  if (data.subsequentSongRate !== prevSubsequent) changes.push(`extra-song rate ₹${prevSubsequent} → ₹${data.subsequentSongRate}`)
   if (data.guestFee !== prev.guestFee) changes.push(`guest fee ₹${prev.guestFee} → ₹${data.guestFee}`)
   const desc = changes.length ? `Event details updated: ${changes.join(', ')}` : 'Event details updated'
   await logActivity(groupId, eventId, actorUid, actorName, ACTIVITY_ACTIONS.EVENT_UPDATED, desc)

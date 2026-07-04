@@ -12,7 +12,7 @@ import { deleteDraft } from '@/services/draft.service'
 import { computeRowEarnings, computeNetAmount } from '@/lib/earnings'
 import { ROUTES } from '@/lib/constants'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 
 function Line({ label, value, tone }: { label: string; value: string; tone?: 'success' | 'danger' }) {
   return (
@@ -36,7 +36,8 @@ export default function Step4Review() {
 
   const totalRevenue = attendance.reduce((s, a) => s + computeRowEarnings({
     isFounder: a.isFounder, songCount: a.songCount, guestCount: a.guestCount,
-    ratePerSong: step1.ratePerSong, guestFee: step1.guestFee,
+    ratePerSong: step1.ratePerSong, subsequentSongRate: step1.subsequentSongRate,
+    guestFee: step1.guestFee, earningsOverride: a.earningsOverride,
   }), 0)
   const totalSponsors = sponsors.reduce((s, sp) => s + Number(sp.amount || 0), 0)
   const validExpenses = expenses.filter((e) => e.vendor && Number(e.amount) > 0)
@@ -74,7 +75,10 @@ export default function Step4Review() {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{step1.date}</span>
             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{step1.venue}</span>
-            <span className="flex items-center gap-1"><Music className="w-3.5 h-3.5" />₹{step1.ratePerSong}/song · ₹{step1.guestFee}/guest</span>
+            <span className="flex items-center gap-1"><Music className="w-3.5 h-3.5" />
+              {step1.subsequentSongRate !== step1.ratePerSong
+                ? `₹${step1.ratePerSong} first · ₹${step1.subsequentSongRate}/extra song`
+                : `₹${step1.ratePerSong}/song`} · ₹{step1.guestFee}/guest</span>
           </div>
         </div>
 
@@ -95,10 +99,11 @@ export default function Step4Review() {
                       {a.songCount} song{a.songCount === 1 ? '' : 's'}{a.guestCount > 0 ? ` · ${a.guestCount} guest${a.guestCount === 1 ? '' : 's'}` : ''}
                     </span>
                   </span>
-                  <span className="font-medium tabular-nums text-success">
+                  <span className={cn('font-medium tabular-nums', a.earningsOverride != null ? 'text-gold' : 'text-success')}>
                     {formatCurrency(computeRowEarnings({
                       isFounder: a.isFounder, songCount: a.songCount, guestCount: a.guestCount,
-                      ratePerSong: step1.ratePerSong, guestFee: step1.guestFee,
+                      ratePerSong: step1.ratePerSong, subsequentSongRate: step1.subsequentSongRate,
+                      guestFee: step1.guestFee, earningsOverride: a.earningsOverride,
                     }))}
                   </span>
                 </div>

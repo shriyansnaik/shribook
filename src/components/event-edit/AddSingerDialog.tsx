@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +10,7 @@ import { computeRowEarnings } from '@/lib/earnings'
 import { useAuthStore } from '@/store/authStore'
 import { useGroupStore } from '@/store/groupStore'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { Attendance } from '@/types'
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   groupId: string
   eventId: string
   ratePerSong: number
+  subsequentSongRate?: number
   guestFee: number
   currentAttendance: Attendance[]
 }
@@ -39,13 +40,14 @@ function Stepper({ value, onDec, onInc }: { value: number; onDec: () => void; on
   )
 }
 
-export default function AddSingerDialog({ open, onOpenChange, groupId, eventId, ratePerSong, guestFee, currentAttendance }: Props) {
+export default function AddSingerDialog({ open, onOpenChange, groupId, eventId, ratePerSong, subsequentSongRate, guestFee, currentAttendance }: Props) {
   const user = useAuthStore((s) => s.user)
   const { members } = useGroupStore()
   const { toast } = useToast()
   const [memberId, setMemberId] = useState('')
   const [songCount, setSongCount] = useState(1)
   const [guestCount, setGuestCount] = useState(0)
+  const [override, setOverride] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
   const attending = new Set(currentAttendance.filter(a => a.status === 'attending').map((a) => a.memberId))
@@ -53,19 +55,19 @@ export default function AddSingerDialog({ open, onOpenChange, groupId, eventId, 
   const selected = members.find((m) => m.id === memberId)
   const isFounder = selected?.role === 'founder'
 
-  const amount = selected
-    ? computeRowEarnings({ isFounder, songCount, guestCount, ratePerSong, guestFee })
+  const computed = selected
+    ? computeRowEarnings({ isFounder, songCount, guestCount, ratePerSong, subsequentSongRate, guestFee })
     : 0
 
-  const reset = () => { setMemberId(''); setSongCount(1); setGuestCount(0) }
+  const reset = () => { setMemberId(''); setSongCount(1); setGuestCount(0); setOverride(null) }
 
   const handleSubmit = async () => {
     if (!user || !selected) return
     setLoading(true)
     try {
       await addAttendee(
-        groupId, eventId, { ratePerSong, guestFee },
-        { memberId, memberName: selected.name, isFounder, songCount, guestCount },
+        groupId, eventId, { ratePerSong, subsequentSongRate, guestFee },
+        { memberId, memberName: selected.name, isFounder, songCount, guestCount, earningsOverride: override },
         user.uid, user.displayName ?? 'Admin'
       )
       toast({ title: 'Singer added' })
@@ -108,8 +110,31 @@ export default function AddSingerDialog({ open, onOpenChange, groupId, eventId, 
 
         {selected && (
           <div className="flex justify-between items-center rounded-lg bg-muted/60 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Amount</span>
-            <span className="font-semibold text-success">{formatCurrency(amount)}</span>
+            <span className="text-muted-foreground">Amount {override != null && <span className="text-gold">· custom</span>}</span>
+            <div className="flex items-center gap-1.5">
+              <div className={cn('flex items-center h-8 rounded-md border pl-2 pr-1.5 bg-background focus-within:ring-1 focus-within:ring-navy/40',
+                override != null ? 'border-gold/60' : 'border-border')}>
+                <span className="text-xs text-muted-foreground mr-0.5">₹</span>
+                <input
+                  type="number" min={0} inputMode="numeric" aria-label="Amount"
+                  className={cn('w-20 bg-transparent text-right font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+                    override != null ? 'text-gold' : 'text-success')}
+                  value={override != null ? String(override) : String(computed)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v === '') setOverride(null)
+                    else if (!Number.isNaN(Number(v))) setOverride(Math.max(0, Number(v)))
+                  }}
+                />
+              </div>
+              {override != null && (
+                <button type="button" onClick={() => setOverride(null)} title="Reset to auto"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-navy hover:bg-muted transition-colors">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         )}
 

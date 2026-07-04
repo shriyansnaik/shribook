@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useEventDraftStore } from '@/store/eventDraftStore'
 import { eventStep1Schema, type EventStep1Values } from '@/lib/validators'
@@ -13,20 +14,28 @@ import type { EventType } from '@/types'
 export default function Step1EventDetails() {
   const { step1, setStep1, setStep } = useEventDraftStore()
   const [eventType, setEventType] = useState<EventType>(step1?.eventType ?? 'regular')
+  // "Tiered" = the 2nd song onward is charged at a different rate than the first.
+  const [tiered, setTiered] = useState(
+    step1?.subsequentSongRate != null && step1.subsequentSongRate !== step1.ratePerSong
+  )
 
   const { register, handleSubmit, formState: { errors } } = useForm<EventStep1Values>({
     resolver: zodResolver(eventStep1Schema),
     defaultValues: step1 ?? {
       title: '', date: '', venue: '', description: undefined,
-      ratePerSong: 600, guestFee: 0,
+      ratePerSong: 600, subsequentSongRate: 600, guestFee: 0,
     },
   })
 
   const onSubmit = (data: EventStep1Values) => {
+    const ratePerSong = Number(data.ratePerSong)
+    // Flat pricing stores the same value for both so downstream math is uniform.
+    const subsequentSongRate = tiered ? Number(data.subsequentSongRate ?? ratePerSong) : ratePerSong
     setStep1({
       ...data,
       eventType,
-      ratePerSong: Number(data.ratePerSong),
+      ratePerSong,
+      subsequentSongRate,
       guestFee: Number(data.guestFee),
     })
     setStep(2)
@@ -64,10 +73,27 @@ export default function Step1EventDetails() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="rate">Rate per Song (₹) *</Label>
+        <Label htmlFor="rate">{tiered ? 'Rate for First Song (₹) *' : 'Rate per Song (₹) *'}</Label>
         <Input id="rate" type="number" min={1} {...register('ratePerSong')} />
         {errors.ratePerSong && <p className="text-xs text-destructive">{errors.ratePerSong.message}</p>}
       </div>
+
+      <div className="flex items-center justify-between rounded-lg border border-border p-3">
+        <div className="pr-3">
+          <Label htmlFor="tiered" className="cursor-pointer">Different rate for extra songs</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">2nd song onward is charged differently (usually lower).</p>
+        </div>
+        <Switch id="tiered" checked={tiered} onCheckedChange={setTiered} />
+      </div>
+
+      {tiered && (
+        <div className="space-y-1.5">
+          <Label htmlFor="rate2">Rate for Extra Songs (₹) *</Label>
+          <Input id="rate2" type="number" min={0} {...register('subsequentSongRate')} />
+          <p className="text-xs text-muted-foreground">Charged for every song after the first.</p>
+          {errors.subsequentSongRate && <p className="text-xs text-destructive">{errors.subsequentSongRate.message}</p>}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor="guestFee">Guest Fee (₹)</Label>

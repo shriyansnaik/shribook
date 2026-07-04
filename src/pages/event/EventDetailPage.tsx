@@ -69,7 +69,10 @@ export default function EventDetailPage() {
           )}
           <span>{formatDate(event.date)}</span>
           <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.venue}</span>
-          <span className="flex items-center gap-1"><Music className="w-3.5 h-3.5" />₹{event.ratePerSong}/song · ₹{event.guestFee ?? 0}/guest</span>
+          <span className="flex items-center gap-1"><Music className="w-3.5 h-3.5" />
+            {event.subsequentSongRate != null && event.subsequentSongRate !== event.ratePerSong
+              ? `₹${event.ratePerSong} first · ₹${event.subsequentSongRate}/extra song`
+              : `₹${event.ratePerSong}/song`} · ₹{event.guestFee ?? 0}/guest</span>
         </div>
 
         {event.description && (

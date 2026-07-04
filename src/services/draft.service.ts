@@ -12,7 +12,9 @@ function computeTotals(payload: DraftPayload) {
     songCount: a.songCount,
     guestCount: a.guestCount,
     ratePerSong: step1.ratePerSong,
+    subsequentSongRate: step1.subsequentSongRate,
     guestFee: step1.guestFee,
+    earningsOverride: a.earningsOverride,
   }), 0)
   const totalSponsors = sponsors.reduce((s, sp) => s + Number(sp.amount || 0), 0)
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0)
@@ -37,7 +39,14 @@ export async function saveDraft(
   const totals = computeTotals(payload)
   const cleanPayload = {
     ...payload,
-    step1: { ...step1, description: step1.description ?? '' },
+    step1: {
+      ...step1,
+      description: step1.description ?? '',
+      // Older drafts predate tiered pricing → fall back to flat.
+      subsequentSongRate: step1.subsequentSongRate ?? step1.ratePerSong,
+    },
+    // Firestore rejects `undefined` in nested objects, so normalize the override.
+    attendance: payload.attendance.map((a) => ({ ...a, earningsOverride: a.earningsOverride ?? null })),
   }
 
   const base = {
@@ -47,6 +56,7 @@ export async function saveDraft(
     description: step1.description || null,
     eventType: step1.eventType,
     ratePerSong: step1.ratePerSong,
+    subsequentSongRate: step1.subsequentSongRate ?? step1.ratePerSong,
     guestFee: step1.guestFee,
     status: 'draft' as const,
     attendingCount: payload.attendance.length,

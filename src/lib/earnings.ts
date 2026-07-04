@@ -1,7 +1,13 @@
 // ─── Earnings calculation spine ──────────────────────────────────────────────
 // The single source of truth for how much an attendee contributes to an event.
-// Rule: a founder's own songs are free (₹0), but any guests they bring are still
-// charged. Guests apply to every event type; event type is a label only.
+// Rules:
+//  • A founder's own songs are free (₹0), but any guests they bring are still
+//    charged. Guests apply to every event type; event type is a label only.
+//  • Song pricing can be tiered: the first song is charged at `ratePerSong` and
+//    every song after that at `subsequentSongRate`. When `subsequentSongRate` is
+//    omitted it falls back to `ratePerSong` (flat pricing — the classic case).
+//  • `earningsOverride`, when provided, replaces the whole computed amount. It is
+//    a manual figure an admin typed for a singer and wins over every rule above.
 
 export interface RowEarningsInput {
   isFounder: boolean
@@ -9,6 +15,8 @@ export interface RowEarningsInput {
   guestCount: number
   ratePerSong: number
   guestFee: number
+  subsequentSongRate?: number
+  earningsOverride?: number | null
 }
 
 export function computeRowEarnings({
@@ -17,8 +25,16 @@ export function computeRowEarnings({
   guestCount,
   ratePerSong,
   guestFee,
+  subsequentSongRate,
+  earningsOverride,
 }: RowEarningsInput): number {
-  const songPortion = isFounder ? 0 : songCount * ratePerSong
+  if (earningsOverride != null) return earningsOverride
+
+  const subsequent = subsequentSongRate ?? ratePerSong
+  let songPortion = 0
+  if (!isFounder && songCount > 0) {
+    songPortion = ratePerSong + Math.max(0, songCount - 1) * subsequent
+  }
   const guestPortion = guestCount * guestFee
   return songPortion + guestPortion
 }

@@ -17,6 +17,7 @@ export const eventStep1Schema = z.object({
   venue: z.string().min(1, 'Venue is required').max(200),
   description: z.string().max(500).optional().or(z.literal('')),
   ratePerSong: z.coerce.number().min(1, 'Rate must be at least ₹1').max(100000),
+  subsequentSongRate: z.coerce.number().min(0, 'Cannot be negative').max(100000).optional(),
   guestFee: z.coerce.number().min(0, 'Cannot be negative').max(100000),
 })
 

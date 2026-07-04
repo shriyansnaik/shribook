@@ -7,6 +7,8 @@ export interface DraftAttendee {
   isFounder: boolean
   songCount: number
   guestCount: number
+  // Manual amount typed in Step 2. null → auto-calculated from songs/guests.
+  earningsOverride?: number | null
 }
 
 export interface DraftExpense {
@@ -28,6 +30,7 @@ export interface Step1Data {
   description?: string
   eventType: EventType
   ratePerSong: number
+  subsequentSongRate: number
   guestFee: number
 }
 
@@ -52,6 +55,7 @@ interface EventDraftState {
   toggleAttendee: (memberId: string, memberName: string, isFounder: boolean) => void
   updateSongCount: (memberId: string, count: number) => void
   updateGuestCount: (memberId: string, count: number) => void
+  setEarningsOverride: (memberId: string, value: number | null) => void
   setExpenses: (expenses: DraftExpense[]) => void
   setSponsors: (sponsors: DraftSponsor[]) => void
   loadDraft: (draftId: string, payload: DraftPayload) => void
@@ -75,7 +79,7 @@ export const useEventDraftStore = create<EventDraftState>((set, get) => ({
     set({
       attendance: exists
         ? attendance.filter((a) => a.memberId !== memberId)
-        : [...attendance, { memberId, memberName, isFounder, songCount: 1, guestCount: 0 }],
+        : [...attendance, { memberId, memberName, isFounder, songCount: 1, guestCount: 0, earningsOverride: null }],
     })
   },
 
@@ -91,6 +95,14 @@ export const useEventDraftStore = create<EventDraftState>((set, get) => ({
     set({
       attendance: get().attendance.map((a) =>
         a.memberId === memberId ? { ...a, guestCount: Math.max(0, count) } : a
+      ),
+    })
+  },
+
+  setEarningsOverride: (memberId, value) => {
+    set({
+      attendance: get().attendance.map((a) =>
+        a.memberId === memberId ? { ...a, earningsOverride: value == null ? null : Math.max(0, value) } : a
       ),
     })
   },

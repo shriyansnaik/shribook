@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ResponsiveDialog } from '@/components/shared/ResponsiveDialog'
 import { updateEventDetails } from '@/services/event.service'
@@ -30,6 +31,8 @@ export default function EditEventDetailsDialog({ open, onOpenChange, groupId, ev
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [eventType, setEventType] = useState<EventType>(event.eventType)
+  const prevSubsequent = event.subsequentSongRate ?? event.ratePerSong
+  const [tiered, setTiered] = useState(prevSubsequent !== event.ratePerSong)
 
   const { register, handleSubmit, formState: { errors } } = useForm<EventStep1Values>({
     resolver: zodResolver(eventStep1Schema),
@@ -39,6 +42,7 @@ export default function EditEventDetailsDialog({ open, onOpenChange, groupId, ev
       venue: event.venue,
       description: event.description ?? '',
       ratePerSong: event.ratePerSong,
+      subsequentSongRate: prevSubsequent,
       guestFee: event.guestFee ?? 0,
     },
   })
@@ -47,13 +51,15 @@ export default function EditEventDetailsDialog({ open, onOpenChange, groupId, ev
     if (!user) return
     setLoading(true)
     try {
+      const ratePerSong = Number(data.ratePerSong)
+      const subsequentSongRate = tiered ? Number(data.subsequentSongRate ?? ratePerSong) : ratePerSong
       await updateEventDetails(
         groupId, event.id,
         {
           title: data.title, date: data.date, venue: data.venue, description: data.description,
-          eventType, ratePerSong: Number(data.ratePerSong), guestFee: Number(data.guestFee),
+          eventType, ratePerSong, subsequentSongRate, guestFee: Number(data.guestFee),
         },
-        { title: event.title, venue: event.venue, eventType: event.eventType, ratePerSong: event.ratePerSong, guestFee: event.guestFee ?? 0 },
+        { title: event.title, venue: event.venue, eventType: event.eventType, ratePerSong: event.ratePerSong, subsequentSongRate: prevSubsequent, guestFee: event.guestFee ?? 0 },
         user.uid, user.displayName ?? 'Admin'
       )
       toast({ title: 'Event updated', description: 'Amounts were recalculated where needed.' })
@@ -95,7 +101,7 @@ export default function EditEventDetailsDialog({ open, onOpenChange, groupId, ev
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>Rate / Song (₹)</Label>
+            <Label>{tiered ? 'First Song (₹)' : 'Rate / Song (₹)'}</Label>
             <Input type="number" min={1} {...register('ratePerSong')} />
             {errors.ratePerSong && <p className="text-xs text-destructive">{errors.ratePerSong.message}</p>}
           </div>
@@ -105,6 +111,20 @@ export default function EditEventDetailsDialog({ open, onOpenChange, groupId, ev
             {errors.guestFee && <p className="text-xs text-destructive">{errors.guestFee.message}</p>}
           </div>
         </div>
+        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+          <div className="pr-3">
+            <Label htmlFor="edit-tiered" className="cursor-pointer">Different rate for extra songs</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">2nd song onward is charged differently.</p>
+          </div>
+          <Switch id="edit-tiered" checked={tiered} onCheckedChange={setTiered} />
+        </div>
+        {tiered && (
+          <div className="space-y-1.5">
+            <Label>Rate for Extra Songs (₹)</Label>
+            <Input type="number" min={0} {...register('subsequentSongRate')} />
+            {errors.subsequentSongRate && <p className="text-xs text-destructive">{errors.subsequentSongRate.message}</p>}
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label>Description (optional)</Label>
           <Textarea rows={2} {...register('description')} />

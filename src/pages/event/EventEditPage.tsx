@@ -94,7 +94,9 @@ export default function EventEditPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-0.5">
             <p><span className="text-foreground font-medium">{event.title}</span> · {event.eventType === 'special' ? 'Special' : 'Regular'}</p>
-            <p>₹{event.ratePerSong}/song · ₹{event.guestFee ?? 0}/guest</p>
+            <p>{event.subsequentSongRate != null && event.subsequentSongRate !== event.ratePerSong
+              ? `₹${event.ratePerSong} first · ₹${event.subsequentSongRate}/extra song`
+              : `₹${event.ratePerSong}/song`} · ₹{event.guestFee ?? 0}/guest</p>
           </CardContent>
         </Card>
 
@@ -216,12 +218,12 @@ export default function EventEditPage() {
       {/* Dialogs */}
       <EditEventDetailsDialog open={detailsOpen} onOpenChange={setDetailsOpen} groupId={groupId!} event={event} />
       <AddSingerDialog open={addSingerOpen} onOpenChange={setAddSingerOpen}
-        groupId={groupId!} eventId={eventId!} ratePerSong={event.ratePerSong} guestFee={event.guestFee ?? 0} currentAttendance={attendance} />
+        groupId={groupId!} eventId={eventId!} ratePerSong={event.ratePerSong} subsequentSongRate={event.subsequentSongRate} guestFee={event.guestFee ?? 0} currentAttendance={attendance} />
       <AddExpenseDialog open={addExpenseOpen} onOpenChange={setAddExpenseOpen} groupId={groupId!} eventId={eventId!} />
       <AddSponsorDialog open={addSponsorOpen} onOpenChange={setAddSponsorOpen} groupId={groupId!} eventId={eventId!} />
       {editAttendee && (
         <EditAttendeeDialog open={!!editAttendee} onOpenChange={(v) => !v && setEditAttendee(null)}
-          groupId={groupId!} eventId={eventId!} ratePerSong={event.ratePerSong} guestFee={event.guestFee ?? 0} attendance={editAttendee} />
+          groupId={groupId!} eventId={eventId!} ratePerSong={event.ratePerSong} subsequentSongRate={event.subsequentSongRate} guestFee={event.guestFee ?? 0} attendance={editAttendee} />
       )}
       {cancelTarget && (
         <CancelSingerDialog open={!!cancelTarget} onOpenChange={(v) => !v && setCancelTarget(null)}

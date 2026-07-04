@@ -49,6 +49,9 @@ export interface Event {
   description: string | null
   eventType: EventType
   ratePerSong: number
+  // Rate charged for the 2nd song onward. Absent on older events → equals
+  // ratePerSong (flat pricing).
+  subsequentSongRate?: number
   guestFee: number
   status: EventStatus
   createdAt: Timestamp
@@ -71,6 +74,9 @@ export interface Attendance {
   songCount: number
   guestCount: number
   earnings: number
+  // Manual amount typed by an admin. When set, it overrides the computed
+  // earnings and is preserved across rate changes. null → auto-calculated.
+  earningsOverride?: number | null
   status: AttendanceStatus
   cancelledAt: Timestamp | null
   refundIssued: boolean

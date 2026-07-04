@@ -31,7 +31,9 @@ export default function Step2Attendance() {
     songCount: a.songCount,
     guestCount: a.guestCount,
     ratePerSong: step1?.ratePerSong ?? 0,
+    subsequentSongRate: step1?.subsequentSongRate,
     guestFee: step1?.guestFee ?? 0,
+    earningsOverride: a.earningsOverride,
   }), 0)
 
   return (
